@@ -2,6 +2,14 @@ import Head from 'next/head'
 import React from 'react'
 import TodaysWeather from '../../components/TodaysWeather'
 import cities from '../../lib/city.list.json'
+import moment from 'moment-timezone'
+import HourlyWeather from '../../components/HourlyWeather'
+import WeeklyWeather from '../../components/WeeklyWeather'
+import Search from '../../components/Search'
+import Link from 'next/link'
+import { Router } from 'next/router'
+import Loading from '../../components/Loading'
+import ChangeTheme from '../../components/ChangeTheme'
 
 export async function getServerSideProps(context) {
 
@@ -24,12 +32,13 @@ export async function getServerSideProps(context) {
     }
   }
 
-  const hourlyWeather = getHourlyWeather(data.hourly)
+  const hourlyWeather = getHourlyWeather(data.hourly, data.timezone)
 
 
   return {
     props: {
       city,
+      timezone: data.timezone,
       currentWeather: data.current,
       hourlyWeather,
       dailyWeather: data.daily
@@ -53,32 +62,52 @@ const getCity = param => {
   }
 }
 
-const getHourlyWeather = (hourlyData) => {
-  const current = new Date()
-  current.setHours(current.getHours(), 0, 0, 0)
+const getHourlyWeather = (hourlyData, timezone) => {
+  const endOfDay = moment().tz(timezone).endOf('day').valueOf()
+  const endOfDayTimeStamp = Math.floor(endOfDay / 1000)
 
-  const tomorrow = new Date(current)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  tomorrow.setHours(0, 0, 0, 0)
-
-  const currentTimeStamp = Math.floor(current.getTime() / 1000)
-  const tomorrowTimeStamp = Math.floor(tomorrow.getTime() / 1000)
-
-  const todaysData = hourlyData.filter(data => data.dt < tomorrowTimeStamp)
+  const todaysData = hourlyData.filter(data => data.dt < endOfDayTimeStamp)
 
   return todaysData
 }
 
-export default function City({ city, currentWeather, hourlyWeather, dailyWeather }) {
+export default function City({ city, currentWeather, hourlyWeather, dailyWeather, timezone }) {
+
+  const [loading, setLoading] = React.useState(false)
+
+  React.useEffect(() => {
+    Router.events.on('routeChangeStart', () => setLoading(true))
+    Router.events.on('routeChangeComplete', () => setLoading(false))
+
+    return () => {
+      Router.events.off('routeChangeStart', () => setLoading(true))
+      Router.events.off('routeChangeComplete', () => setLoading(false))
+    }
+  }, [])
+
+  if (loading) {
+    return <Loading />
+  }
+
+
 
   return (
-    <div className='container mx-auto py-10'>
+    <>
+      <ChangeTheme />
       <Head>
         <title>{city.name} - Weather App</title>
       </Head>
-      <div className="mt-10">
-        <TodaysWeather city={city} weather={dailyWeather[0]} />
+      <div className="flex flex-col gap-10 pb-10">
+        <div className="container mx-auto pt-3">
+          <Link href='/' className='text-blue-600 font-semibold'>
+            &#8592; Home
+          </Link>
+        </div>
+        <Search placeholder="Search for another location..." />
+        <TodaysWeather city={city} weather={dailyWeather[0]} timezone={timezone} />
+        <HourlyWeather hourlyWeather={hourlyWeather} timezone={timezone} />
+        <WeeklyWeather WeeklyWeather={dailyWeather} timezone={timezone} />
       </div>
-    </div>
+    </>
   )
 }
