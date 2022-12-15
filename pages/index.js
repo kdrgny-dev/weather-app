@@ -14,7 +14,11 @@ export default function Home() {
 
       <ChangeTheme />
 
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-20">
+
+        <div className="flex items-center text-3xl font-bold">
+          Basic Weather App
+        </div>
 
         <Search placeholder={'Search City -> e.g : İstanbul'} />
       </div>
